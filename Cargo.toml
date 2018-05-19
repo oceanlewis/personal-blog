@@ -9,13 +9,14 @@ serde_json = "*"
 serde_derive = "*"
 
 env_logger = "*"
+
 actix = "*"
 actix-web = "*"
 
-futures = "*"
+futures = "0.1"
 
 diesel = { version = "*", features = ["chrono", "postgres"] }
 r2d2 = "*"
 r2d2-diesel = "*"
 
-chrono = "*"
+chrono = { version = "0.4", features = ["serde"] }

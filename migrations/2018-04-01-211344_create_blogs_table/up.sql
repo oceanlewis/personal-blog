@@ -1,11 +1,11 @@
 -- Your SQL goes here
 CREATE TABLE blog_posts (
     id SERIAL PRIMARY KEY,
-    title VARCHAR NOT NULL,
-    body TEXT NOT NULL,
-    published BOOLEAN NOT NULL DEFAULT 'f',
-    created_at timestamp NOT NULL,
-    updated_at timestamp NOT NULL
+    title VARCHAR,
+    body TEXT,
+    published BOOLEAN DEFAULT 'f',
+    created_at timestamp,
+    updated_at timestamp
 );
 
 CREATE OR REPLACE FUNCTION set_timestamps() RETURNS TRIGGER AS $$
@@ -15,6 +15,7 @@ BEGIN
   END IF;
 
   NEW.updated_at = now();
+  RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 

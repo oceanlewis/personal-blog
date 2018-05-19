@@ -3,10 +3,10 @@ use actix::prelude::*;
 use actix_web::*;
 
 use diesel;
-use diesel::prelude::*;
 use diesel::pg::PgConnection;
-use r2d2_diesel::ConnectionManager;
+use diesel::prelude::*;
 use r2d2::Pool;
+use r2d2_diesel::ConnectionManager;
 
 use models;
 use schema;
@@ -15,6 +15,7 @@ pub struct DbExecutor(pub Pool<ConnectionManager<PgConnection>>);
 
 /// This is only message that this actor can handle, but it is easy to extend number of
 /// messages.
+#[derive(Debug, Deserialize)]
 pub struct CreateBlogPost {
     pub title: String,
     pub body: String,
@@ -41,12 +42,15 @@ impl Handler<CreateBlogPost> for DbExecutor {
             published: msg.published,
         };
 
-        let conn: &PgConnection = &self.0.get().unwrap();
+        let conn: &PgConnection = &self.0.get().expect("Connection was fucked");
 
-        let mut inserted_blog_post = diesel::insert_into(blog_posts)
+        let inserted_blog_post = diesel::insert_into(blog_posts)
             .values(&new_blog_post)
-            .get_results(conn).expect("Error creating new blog post");
+            .get_results(conn);
 
-        Ok(inserted_blog_post.pop().unwrap())
+        let mut inserted_blog_post = inserted_blog_post.expect("Error creating new blog post");
+        let result = inserted_blog_post.pop();
+
+        Ok(result.expect("Insertion was fucked"))
     }
 }
