@@ -15,17 +15,17 @@ extern crate serde_json;
 #[macro_use]
 extern crate serde_derive;
 
-mod db;
-mod models;
-mod schema;
 
 use actix::prelude::*;
 use actix_web::{
     http, middleware, server, App, AsyncResponder, Error, HttpRequest, HttpResponse, Json, State as ActixState
 };
-use db::{CreateBlogPost, DbExecutor};
 use diesel::prelude::*;
 use futures::prelude::*;
+
+mod db;
+use db::messages::CreateBlogPost;
+use db::actors::DbExecutor;
 
 struct State {
     db: Addr<Syn, DbExecutor>,

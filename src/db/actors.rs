@@ -1,4 +1,3 @@
-/// This is db executor actor. We are going to run 3 of them in parallel.
 use actix::prelude::*;
 use actix_web::*;
 
@@ -8,35 +7,22 @@ use diesel::prelude::*;
 use r2d2::Pool;
 use r2d2_diesel::ConnectionManager;
 
-use models;
-use schema;
+use db::messages::{CreateBlogPost};
+use db::models::{BlogPost, NewBlogPost};
 
 pub struct DbExecutor(pub Pool<ConnectionManager<PgConnection>>);
-
-/// This is only message that this actor can handle, but it is easy to extend number of
-/// messages.
-#[derive(Debug, Deserialize)]
-pub struct CreateBlogPost {
-    pub title: String,
-    pub body: String,
-    pub published: bool,
-}
-
-impl Message for CreateBlogPost {
-    type Result = Result<models::BlogPost, Error>;
-}
 
 impl Actor for DbExecutor {
     type Context = SyncContext<Self>;
 }
 
 impl Handler<CreateBlogPost> for DbExecutor {
-    type Result = Result<models::BlogPost, Error>;
+    type Result = Result<BlogPost, Error>;
 
     fn handle(&mut self, msg: CreateBlogPost, _: &mut Self::Context) -> Self::Result {
-        use self::schema::blog_posts::dsl::*;
+        use db::schema::blog_posts::dsl::*;
 
-        let new_blog_post = models::NewBlogPost {
+        let new_blog_post = NewBlogPost {
             title: &msg.title,
             body: &msg.body,
             published: msg.published,
