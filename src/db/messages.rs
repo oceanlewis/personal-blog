@@ -14,3 +14,9 @@ impl Message for CreateBlogPost {
     type Result = Result<BlogPost, Error>;
 }
 
+#[derive(Debug, Deserialize, Serialize)]
+pub struct ListBlogPosts;
+
+impl Message for ListBlogPosts {
+    type Result = Result<Vec<BlogPost>, Error>;
+}

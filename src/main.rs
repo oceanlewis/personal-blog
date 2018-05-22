@@ -24,7 +24,7 @@ use diesel::prelude::*;
 use futures::prelude::*;
 
 mod db;
-use db::messages::CreateBlogPost;
+use db::messages::{CreateBlogPost, ListBlogPosts};
 use db::actors::DbExecutor;
 
 struct State {
@@ -46,11 +46,26 @@ fn create_blog_post(data: (ActixState<State>, Json<CreateBlogPost>)) -> Box<Futu
             published: blog.published
         })
         .from_err()
-            .and_then(|res| match res {
-                Ok(blog_post) => Ok(HttpResponse::Ok().json(blog_post)),
-                Err(_) => Ok(HttpResponse::InternalServerError().into()),
-            })
+        .and_then(|res| match res {
+            Ok(blog_post) => Ok(HttpResponse::Ok().json(blog_post)),
+            Err(_) => Ok(HttpResponse::InternalServerError().into()),
+        })
         .responder()
+}
+
+fn list_blog_posts(request: HttpRequest<State>) -> Box<Future<Item = HttpResponse, Error = Error>> {
+    request.state().db.send(ListBlogPosts).from_err().and_then(|res| match res {
+        Ok(blog_posts) => {
+            let json = HttpResponse::Ok().json(blog_posts);
+            println!("{:?}", json);
+            Ok(json)
+        },
+        Err(error) => {
+            println!("{:?}", error);
+            Ok(HttpResponse::InternalServerError().into())
+        },
+    })
+    .responder()
 }
 
 fn main() {
@@ -71,7 +86,10 @@ fn main() {
         App::with_state(State{db: addr.clone()})
             .middleware(middleware::Logger::default())
             .resource("/", |r| r.method(http::Method::GET).f(index))
-            .resource("/blogs", |r| r.method(http::Method::POST).with(create_blog_post))
+            .resource("/blogs", |r| {
+                r.put().with(create_blog_post);
+                r.get().with(list_blog_posts);
+            })
     }).bind("127.0.0.1:8080")
         .unwrap()
         .start();

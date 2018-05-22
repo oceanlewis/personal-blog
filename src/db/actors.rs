@@ -7,8 +7,9 @@ use diesel::prelude::*;
 use r2d2::Pool;
 use r2d2_diesel::ConnectionManager;
 
-use db::messages::{CreateBlogPost};
+use db::messages::{CreateBlogPost, ListBlogPosts};
 use db::models::{BlogPost, NewBlogPost};
+use db::schema::blog_posts::dsl::*;
 
 pub struct DbExecutor(pub Pool<ConnectionManager<PgConnection>>);
 
@@ -20,7 +21,6 @@ impl Handler<CreateBlogPost> for DbExecutor {
     type Result = Result<BlogPost, Error>;
 
     fn handle(&mut self, msg: CreateBlogPost, _: &mut Self::Context) -> Self::Result {
-        use db::schema::blog_posts::dsl::*;
 
         let new_blog_post = NewBlogPost {
             title: &msg.title,
@@ -38,5 +38,20 @@ impl Handler<CreateBlogPost> for DbExecutor {
         let result = inserted_blog_post.pop();
 
         Ok(result.expect("Insertion was fucked"))
+    }
+}
+
+impl Handler<ListBlogPosts> for DbExecutor {
+    type Result = Result<Vec<BlogPost>, Error>;
+
+    fn handle(&mut self, _msg: ListBlogPosts, _: &mut Self::Context) -> Self::Result {
+        let conn: &PgConnection = &self.0.get().expect("Connection was fucked");
+
+        let results = blog_posts
+            .filter(published.eq(true))
+            .load::<BlogPost>(conn)
+            .expect("Error loading posts");
+
+        Ok(results)
     }
 }
