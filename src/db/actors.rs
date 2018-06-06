@@ -21,7 +21,6 @@ impl Handler<CreateBlogPost> for DbExecutor {
     type Result = Result<BlogPost, Error>;
 
     fn handle(&mut self, msg: CreateBlogPost, _: &mut Self::Context) -> Self::Result {
-
         let new_blog_post = NewBlogPost {
             title: &msg.title,
             body: &msg.body,
@@ -35,6 +34,7 @@ impl Handler<CreateBlogPost> for DbExecutor {
             .get_results(conn);
 
         let mut inserted_blog_post = inserted_blog_post.expect("Error creating new blog post");
+
         let result = inserted_blog_post.pop();
 
         Ok(result.expect("Insertion was fucked"))

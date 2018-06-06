@@ -15,35 +15,35 @@ extern crate serde_json;
 #[macro_use]
 extern crate serde_derive;
 
-
 use actix::prelude::*;
-use actix_web::{
-    http, middleware, server, App, AsyncResponder, Error, HttpRequest, HttpResponse, Json, State as ActixState
-};
+use actix_web::{http, middleware, server, App, AsyncResponder, Error, HttpRequest, HttpResponse,
+                Json, Responder, State as ActixState};
 use diesel::prelude::*;
 use futures::prelude::*;
 
 mod db;
-use db::messages::{CreateBlogPost, ListBlogPosts};
 use db::actors::DbExecutor;
+use db::messages::{CreateBlogPost, ListBlogPosts};
 
 struct State {
     db: Addr<Syn, DbExecutor>,
 }
 
-fn index(_request: HttpRequest<State>) -> &'static str {
+fn index(_request: HttpRequest<State>) -> impl Responder {
     "Hello!"
 }
 
-fn create_blog_post(data: (ActixState<State>, Json<CreateBlogPost>)) -> Box<Future<Item = HttpResponse, Error = Error>> {
-
+fn create_blog_post(
+    data: (ActixState<State>, Json<CreateBlogPost>),
+) -> Box<Future<Item = HttpResponse, Error = Error>> {
     let (state, blog) = data;
 
-    state.db
-        .send(CreateBlogPost{
+    state
+        .db
+        .send(CreateBlogPost {
             title: blog.title.to_owned(),
             body: blog.body.to_owned(),
-            published: blog.published
+            published: blog.published,
         })
         .from_err()
         .and_then(|res| match res {
@@ -54,22 +54,28 @@ fn create_blog_post(data: (ActixState<State>, Json<CreateBlogPost>)) -> Box<Futu
 }
 
 fn list_blog_posts(request: HttpRequest<State>) -> Box<Future<Item = HttpResponse, Error = Error>> {
-    request.state().db.send(ListBlogPosts).from_err().and_then(|res| match res {
-        Ok(blog_posts) => {
-            let json = HttpResponse::Ok().json(blog_posts);
-            println!("{:?}", json);
-            Ok(json)
-        },
-        Err(error) => {
-            println!("{:?}", error);
-            Ok(HttpResponse::InternalServerError().into())
-        },
-    })
-    .responder()
+    request
+        .state()
+        .db
+        .send(ListBlogPosts)
+        .from_err()
+        .and_then(|res| match res {
+            Ok(blog_posts) => {
+                let json = HttpResponse::Ok().json(blog_posts);
+                println!("{:?}", json);
+                Ok(json)
+            }
+            Err(error) => {
+                println!("{:?}", error);
+                Ok(HttpResponse::InternalServerError().into())
+            }
+        })
+        .responder()
 }
 
 fn main() {
     ::std::env::set_var("RUST_LOG", "actix_web=debug");
+    ::std::env::set_var("RUST_BACKTRACE", "1");
     env_logger::init();
 
     let sys = actix::System::new("personal-blog");
@@ -77,13 +83,12 @@ fn main() {
     let manager =
         r2d2_diesel::ConnectionManager::<PgConnection>::new("postgres://localhost/personal-blog");
 
-    let pool = r2d2::Pool::new(manager)
-        .expect("Failed to create pool.");
+    let pool = r2d2::Pool::new(manager).expect("Failed to create pool.");
 
     let addr = SyncArbiter::start(3, move || DbExecutor(pool.clone()));
 
     server::new(move || {
-        App::with_state(State{db: addr.clone()})
+        App::with_state(State { db: addr.clone() })
             .middleware(middleware::Logger::default())
             .resource("/", |r| r.method(http::Method::GET).f(index))
             .resource("/blogs", |r| {
