@@ -2,3 +2,20 @@
 /target
 **/*.rs.bk
 **/*.rs.rustfmt
+
+# Distribution
+elm/build/
+
+# elm-package generated files
+elm/elm-stuff
+
+# elm-repl generated files
+elm/repl-temp-*
+
+# Dependency directories
+elm/node_modules
+
+# Desktop Services Store on macOS
+.DS_Store
+
+.dingus

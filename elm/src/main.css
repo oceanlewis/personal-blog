@@ -1,0 +1,19 @@
+body {
+  font-family: 'Helvetica Neue', 'Source Sans Pro', 'Trebuchet MS', 'Lucida Grande', 'Bitstream Vera Sans', sans-serif;
+}
+
+.original-body {
+  display: none;
+  margin: 0;
+  text-align: center;
+  color: #293c3b;
+}
+
+h1 {
+  font-size: 30px;
+}
+
+img {
+  margin: 20px 0;
+  max-width: 200px;
+}

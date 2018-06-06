@@ -16,8 +16,8 @@ extern crate serde_json;
 extern crate serde_derive;
 
 use actix::prelude::*;
-use actix_web::{http, middleware, server, App, AsyncResponder, Error, HttpRequest, HttpResponse,
-                Json, Responder, State as ActixState};
+use actix_web::*;
+
 use diesel::prelude::*;
 use futures::prelude::*;
 
@@ -25,16 +25,20 @@ mod db;
 use db::actors::DbExecutor;
 use db::messages::{CreateBlogPost, ListBlogPosts};
 
-struct State {
+struct AppState {
     db: Addr<Syn, DbExecutor>,
 }
 
-fn index(_request: HttpRequest<State>) -> impl Responder {
-    "Hello!"
+fn index(_request: HttpRequest<AppState>) -> std::io::Result<fs::NamedFile> {
+    Ok(fs::NamedFile::open("elm/build/index.html")?)
 }
 
+// fn static(_request: HttpRequest<AppState>) -> fs::StaticFiles {
+//     fs::StaticFiles::new("./static/").index_file("index.html")
+// }
+
 fn create_blog_post(
-    data: (ActixState<State>, Json<CreateBlogPost>),
+    data: (State<AppState>, Json<CreateBlogPost>),
 ) -> Box<Future<Item = HttpResponse, Error = Error>> {
     let (state, blog) = data;
 
@@ -53,7 +57,9 @@ fn create_blog_post(
         .responder()
 }
 
-fn list_blog_posts(request: HttpRequest<State>) -> Box<Future<Item = HttpResponse, Error = Error>> {
+fn list_blog_posts(
+    request: HttpRequest<AppState>,
+) -> Box<Future<Item = HttpResponse, Error = Error>> {
     request
         .state()
         .db
@@ -81,20 +87,21 @@ fn main() {
     let sys = actix::System::new("personal-blog");
 
     let manager =
-        r2d2_diesel::ConnectionManager::<PgConnection>::new("postgres://localhost/personal-blog");
+        r2d2_diesel::ConnectionManager::<PgConnection>::new("postgres://127.0.0.1/personal-blog");
 
     let pool = r2d2::Pool::new(manager).expect("Failed to create pool.");
 
     let addr = SyncArbiter::start(3, move || DbExecutor(pool.clone()));
 
     server::new(move || {
-        App::with_state(State { db: addr.clone() })
+        App::with_state(AppState { db: addr.clone() })
             .middleware(middleware::Logger::default())
             .resource("/", |r| r.method(http::Method::GET).f(index))
             .resource("/blogs", |r| {
                 r.put().with(create_blog_post);
                 r.get().with(list_blog_posts);
             })
+            .handler("/static", fs::StaticFiles::new("elm/build/static/"))
     }).bind("127.0.0.1:8080")
         .unwrap()
         .start();
