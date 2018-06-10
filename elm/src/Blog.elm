@@ -59,7 +59,8 @@ renderBlog blogs id =
             div [] []
 
         Just blog ->
-            div []
+            div
+                []
                 [ h2 [ class "blog-title" ] [ text blog.title ]
                 , Markdown.toHtml [ class "blog-body" ] blog.body
                 ]

@@ -5,7 +5,8 @@ import Html exposing (Html, text, div, h1, img)
 import Html.Attributes exposing (src, class)
 import Http exposing (getString)
 import Array exposing (..)
-import Html.Events exposing (on)
+import Html.Events exposing (onInput)
+import Json.Decode
 
 
 ---- MODEL ----
@@ -40,7 +41,7 @@ init flags =
 type Msg
     = NoOp
     | LoadBlogPosts (Result Http.Error String)
-    | SelectBlogPost Int
+    | SelectBlogPost String
 
 
 fetchBlogPosts : String -> Cmd Msg
@@ -77,12 +78,21 @@ update msg model =
         NoOp ->
             ( model, Cmd.none )
 
-        SelectBlogPost id ->
-            ( { model
-                | blog = updateSelectedPost model.blog id
-              }
-            , Cmd.none
-            )
+        SelectBlogPost optionValue ->
+            let
+                parseAttempt =
+                    String.toInt optionValue
+            in
+                case parseAttempt of
+                    Ok id ->
+                        ( { model
+                            | blog = updateSelectedPost model.blog id
+                          }
+                        , Cmd.none
+                        )
+
+                    Err parseError ->
+                        ( model, Cmd.none )
 
 
 
@@ -97,7 +107,7 @@ blogPostSelectOption post =
 blogPostSelect : Blog.Model -> Html Msg
 blogPostSelect blog =
     Html.select
-        [{--Invoke onChange here. --}
+        [ onInput SelectBlogPost
         ]
         (blog.posts
             |> Array.toList
