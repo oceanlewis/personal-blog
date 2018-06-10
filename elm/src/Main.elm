@@ -1,7 +1,6 @@
 module Main exposing (..)
 
 import Blog exposing (..)
-import Array exposing (..)
 import Html exposing (Html, text, div, h1, img)
 import Html.Attributes exposing (src, class)
 import Http exposing (getString)
@@ -13,8 +12,7 @@ import Markdown exposing (toHtml)
 
 type alias Model =
     { flags : Flags
-    , blogPosts : Array Blog.Post
-    , selectedBlogId : Maybe Blog.Id
+    , blogModel : Blog.Model
     }
 
 
@@ -28,10 +26,9 @@ init flags =
     ( { flags =
             { homeAddress = flags.homeAddress
             }
-      , blogPosts = Array.fromList []
-      , selectedBlogId = Nothing
+      , blogModel = Blog.init
       }
-    , Cmd.none
+    , fetchBlogPosts (flags.homeAddress ++ "/api/blogs")
     )
 
 
@@ -41,31 +38,37 @@ init flags =
 
 type Msg
     = NoOp
+    | LoadBlogPosts (Result Http.Error String)
+
+
+fetchBlogPosts : String -> Cmd Msg
+fetchBlogPosts url =
+    Debug.log url
+        url
+        |> Http.getString
+        |> Http.send LoadBlogPosts
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
-    ( model, Cmd.none )
+    case msg of
+        LoadBlogPosts result ->
+            case result of
+                Ok responseString ->
+                    Debug.log responseString
+                        ( model, Cmd.none )
 
+                Err httpError ->
+                    ( model, Cmd.none )
 
-
----- VIEW ----
-{--
-blogPath : Model -> String -> String
-blogPath model name =
-    model.flags.homeAddress ++ "/" ++ name
-
-
-fetchBlogPost : String -> Http.Request String
-fetchBlogPost path =
-    Http.getString path
---}
+        NoOp ->
+            ( model, Cmd.none )
 
 
 view : Model -> Html Msg
 view model =
     div []
-        [ renderBlog model.selectedBlogId
+        [ renderBlog model.blogModel.selectedBlogId
         ]
 
 

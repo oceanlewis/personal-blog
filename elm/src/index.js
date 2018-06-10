@@ -6,10 +6,8 @@ import registerServiceWorker from './registerServiceWorker';
 
 const elmDiv = document.getElementById('root');
 
-debugger;
-
 const elmApp = Main.embed(elmDiv, {
-  homeAddress: process.env.ELM_APP_HOME_ADDRESS
+  homeAddress: `http://${process.env.ELM_APP_HOME_ADDRESS}`
 });
 
 registerServiceWorker();

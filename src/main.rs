@@ -15,7 +15,8 @@ extern crate serde_json;
 extern crate serde_derive;
 
 use actix::prelude::*;
-use actix_web::*;
+use actix_web::middleware::{cors::Cors, Logger};
+use actix_web::{fs::StaticFiles, http, server, App};
 
 use diesel::prelude::*;
 
@@ -46,21 +47,25 @@ fn main() {
 
     server::new(move || {
         vec![
+            App::with_state(ApiState { db: addr.clone() })
+                .prefix("/api")
+                .configure(|app| {
+                    Cors::for_app(app)
+                        .resource("/blogs", |r| {
+                            r.put().with(create_blog_post);
+                            r.get().with(list_blog_posts);
+                        })
+                        .register()
+                })
+                .boxed(),
             App::new()
                 .prefix("/")
-                .middleware(middleware::Logger::default())
+                .middleware(Logger::default())
                 .resource("/", |r| r.method(http::Method::GET).f(app::index))
                 .resource("/service-worker.js", |r| {
                     r.method(http::Method::GET).f(app::service_worker)
                 })
-                .handler("/static", fs::StaticFiles::new(ELM_BUILD_STATIC_PATH))
-                .boxed(),
-            App::with_state(ApiState { db: addr.clone() })
-                .prefix("/api")
-                .resource("/blogs", |r| {
-                    r.put().with(create_blog_post);
-                    r.get().with(list_blog_posts);
-                })
+                .handler("/static", StaticFiles::new(ELM_BUILD_STATIC_PATH))
                 .boxed(),
         ]
     }).bind(SERVER_ADDRESS)
