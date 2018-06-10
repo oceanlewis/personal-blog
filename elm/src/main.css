@@ -2,8 +2,13 @@ body {
   font-family: 'Helvetica Neue', 'Source Sans Pro', 'Trebuchet MS', 'Lucida Grande', 'Bitstream Vera Sans', sans-serif;
 }
 
-.original-body {
-  //display: none;
+.blog-title {
+  margin: 0;
+  text-align: center;
+  color: #293c3b;
+}
+
+.blog-body {
   margin: 0;
   text-align: center;
   color: #293c3b;

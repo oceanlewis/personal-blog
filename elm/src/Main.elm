@@ -4,7 +4,8 @@ import Blog exposing (..)
 import Html exposing (Html, text, div, h1, img)
 import Html.Attributes exposing (src, class)
 import Http exposing (getString)
-import Markdown exposing (toHtml)
+import Array exposing (..)
+import Html.Events exposing (on)
 
 
 ---- MODEL ----
@@ -12,7 +13,7 @@ import Markdown exposing (toHtml)
 
 type alias Model =
     { flags : Flags
-    , blogModel : Blog.Model
+    , blog : Blog.Model
     }
 
 
@@ -26,7 +27,7 @@ init flags =
     ( { flags =
             { homeAddress = flags.homeAddress
             }
-      , blogModel = Blog.init
+      , blog = Blog.init
       }
     , fetchBlogPosts (flags.homeAddress ++ "/api/blogs")
     )
@@ -39,12 +40,12 @@ init flags =
 type Msg
     = NoOp
     | LoadBlogPosts (Result Http.Error String)
+    | SelectBlogPost Int
 
 
 fetchBlogPosts : String -> Cmd Msg
 fetchBlogPosts url =
-    Debug.log url
-        url
+    url
         |> Http.getString
         |> Http.send LoadBlogPosts
 
@@ -55,8 +56,20 @@ update msg model =
         LoadBlogPosts result ->
             case result of
                 Ok responseString ->
-                    Debug.log responseString
-                        ( model, Cmd.none )
+                    let
+                        blogPostArray =
+                            decodePostsFrom responseString
+                    in
+                        case blogPostArray of
+                            Ok posts ->
+                                ( { model
+                                    | blog = (updateBlogPosts model.blog posts)
+                                  }
+                                , Cmd.none
+                                )
+
+                            Err e ->
+                                ( model, Cmd.none )
 
                 Err httpError ->
                     ( model, Cmd.none )
@@ -64,26 +77,57 @@ update msg model =
         NoOp ->
             ( model, Cmd.none )
 
+        SelectBlogPost id ->
+            ( { model
+                | blog = updateSelectedPost model.blog id
+              }
+            , Cmd.none
+            )
+
+
+
+---- VIEW ----
+
+
+blogPostSelectOption : Blog.Post -> Html Msg
+blogPostSelectOption post =
+    Html.option [ Html.Attributes.value (toString post.id) ] [ text post.title ]
+
+
+blogPostSelect : Blog.Model -> Html Msg
+blogPostSelect blog =
+    Html.select
+        [{--Invoke onChange here. --}
+        ]
+        (blog.posts
+            |> Array.toList
+            |> List.map blogPostSelectOption
+        )
+
 
 view : Model -> Html Msg
 view model =
     div []
-        [ renderBlog model.blogModel.selectedBlogId
+        [ blogPostSelect model.blog
+        , blogContent model.blog
         ]
 
 
-renderBlog : Maybe Blog.Id -> Html msg
-renderBlog blogId =
-    case blogId of
-        Nothing ->
-            div []
-                [ text "No Blog Selected"
-                ]
-
+blogContent : Blog.Model -> Html Msg
+blogContent blogModel =
+    case blogModel.selectedId of
         Just blogId ->
+            renderBlog blogModel.posts blogId
+
+        Nothing ->
+            renderEmptyBlog
+
+
+
+{--
             div []
-                -- [ Markdown.toHtml [ class "blog-content" ] path ]
-                [ Markdown.toHtml [ class "blog-content" ] """
+                [ div [ class "blog-title" ] [ text "Hi" ]
+                , Markdown.toHtml [ class "blog-body" ] """
 
 # This is my first blog post!
 
@@ -94,9 +138,7 @@ renderBlog blogId =
 
 """
                 ]
-
-
-
+--}
 ---- PROGRAM ----
 
 
