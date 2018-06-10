@@ -1,5 +1,7 @@
 module Main exposing (..)
 
+import Blog exposing (..)
+import Array exposing (..)
 import Html exposing (Html, text, div, h1, img)
 import Html.Attributes exposing (src, class)
 import Http exposing (getString)
@@ -11,6 +13,8 @@ import Markdown exposing (toHtml)
 
 type alias Model =
     { flags : Flags
+    , blogPosts : Array Blog.Post
+    , selectedBlogId : Maybe Blog.Id
     }
 
 
@@ -22,7 +26,10 @@ type alias Flags =
 init : Flags -> ( Model, Cmd Msg )
 init flags =
     ( { flags =
-            { homeAddress = flags.homeAddress }
+            { homeAddress = flags.homeAddress
+            }
+      , blogPosts = Array.fromList []
+      , selectedBlogId = Nothing
       }
     , Cmd.none
     )
@@ -43,8 +50,7 @@ update msg model =
 
 
 ---- VIEW ----
-
-
+{--
 blogPath : Model -> String -> String
 blogPath model name =
     model.flags.homeAddress ++ "/" ++ name
@@ -53,20 +59,28 @@ blogPath model name =
 fetchBlogPost : String -> Http.Request String
 fetchBlogPost path =
     Http.getString path
+--}
 
 
 view : Model -> Html Msg
 view model =
     div []
-        [ renderBlog (blogPath model "test.md")
+        [ renderBlog model.selectedBlogId
         ]
 
 
-renderBlog : String -> Html msg
-renderBlog path =
-    div []
-        -- [ Markdown.toHtml [ class "blog-content" ] path ]
-        [ Markdown.toHtml [ class "blog-content" ] """
+renderBlog : Maybe Blog.Id -> Html msg
+renderBlog blogId =
+    case blogId of
+        Nothing ->
+            div []
+                [ text "No Blog Selected"
+                ]
+
+        Just blogId ->
+            div []
+                -- [ Markdown.toHtml [ class "blog-content" ] path ]
+                [ Markdown.toHtml [ class "blog-content" ] """
 
 # This is my first blog post!
 
@@ -76,7 +90,7 @@ renderBlog path =
   2. Bake an apple pie.
 
 """
-        ]
+                ]
 
 
 

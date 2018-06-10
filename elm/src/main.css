@@ -3,7 +3,7 @@ body {
 }
 
 .original-body {
-  display: none;
+  //display: none;
   margin: 0;
   text-align: center;
   color: #293c3b;

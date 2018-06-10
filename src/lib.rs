@@ -15,3 +15,4 @@ extern crate r2d2_diesel;
 extern crate chrono;
 
 pub mod db;
+pub mod routes;

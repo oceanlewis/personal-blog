@@ -1,14 +1,13 @@
 extern crate actix;
 extern crate actix_web;
 extern crate env_logger;
+extern crate futures;
 
 #[macro_use]
 extern crate diesel;
+extern crate chrono;
 extern crate r2d2;
 extern crate r2d2_diesel;
-
-extern crate chrono;
-extern crate futures;
 
 extern crate serde;
 extern crate serde_json;
@@ -19,90 +18,52 @@ use actix::prelude::*;
 use actix_web::*;
 
 use diesel::prelude::*;
-use futures::prelude::*;
 
 mod db;
 use db::actors::DbExecutor;
-use db::messages::{CreateBlogPost, ListBlogPosts};
 
-struct AppState {
-    db: Addr<Syn, DbExecutor>,
-}
+mod routes;
+use routes::{api::{create_blog_post, list_blog_posts, ApiState},
+             app};
 
-fn index(_request: HttpRequest<AppState>) -> std::io::Result<fs::NamedFile> {
-    Ok(fs::NamedFile::open("elm/build/index.html")?)
-}
-
-// fn static(_request: HttpRequest<AppState>) -> fs::StaticFiles {
-//     fs::StaticFiles::new("./static/").index_file("index.html")
-// }
-
-fn create_blog_post(
-    data: (State<AppState>, Json<CreateBlogPost>),
-) -> Box<Future<Item = HttpResponse, Error = Error>> {
-    let (state, blog) = data;
-
-    state
-        .db
-        .send(CreateBlogPost {
-            title: blog.title.to_owned(),
-            body: blog.body.to_owned(),
-            published: blog.published,
-        })
-        .from_err()
-        .and_then(|res| match res {
-            Ok(blog_post) => Ok(HttpResponse::Ok().json(blog_post)),
-            Err(_) => Ok(HttpResponse::InternalServerError().into()),
-        })
-        .responder()
-}
-
-fn list_blog_posts(
-    request: HttpRequest<AppState>,
-) -> Box<Future<Item = HttpResponse, Error = Error>> {
-    request
-        .state()
-        .db
-        .send(ListBlogPosts)
-        .from_err()
-        .and_then(|res| match res {
-            Ok(blog_posts) => {
-                let json = HttpResponse::Ok().json(blog_posts);
-                println!("{:?}", json);
-                Ok(json)
-            }
-            Err(error) => {
-                println!("{:?}", error);
-                Ok(HttpResponse::InternalServerError().into())
-            }
-        })
-        .responder()
-}
+const BLOG_SYSTEM_NAME: &str = "personal-blog";
+const SERVER_ADDRESS: &str = "127.0.0.1:8080";
+const POSTGRES_ADDRESS: &str = "postgres://127.0.0.1/personal-blog";
+const ELM_BUILD_STATIC_PATH: &str = "elm/build/static/";
 
 fn main() {
     ::std::env::set_var("RUST_LOG", "actix_web=debug");
     ::std::env::set_var("RUST_BACKTRACE", "1");
     env_logger::init();
 
-    let sys = actix::System::new("personal-blog");
+    let sys = actix::System::new(BLOG_SYSTEM_NAME);
 
-    let manager =
-        r2d2_diesel::ConnectionManager::<PgConnection>::new("postgres://127.0.0.1/personal-blog");
+    let manager = r2d2_diesel::ConnectionManager::<PgConnection>::new(POSTGRES_ADDRESS);
 
     let pool = r2d2::Pool::new(manager).expect("Failed to create pool.");
 
     let addr = SyncArbiter::start(3, move || DbExecutor(pool.clone()));
 
     server::new(move || {
-        App::with_state(AppState { db: addr.clone() })
-            .middleware(middleware::Logger::default())
-            .resource("/", |r| r.method(http::Method::GET).f(index))
-            .resource("/blogs", |r| {
-                r.put().with(create_blog_post);
-                r.get().with(list_blog_posts);
-            })
-            .handler("/static", fs::StaticFiles::new("elm/build/static/"))
-    }).bind("127.0.0.1:8080")
+        vec![
+            App::new()
+                .prefix("/")
+                .middleware(middleware::Logger::default())
+                .resource("/", |r| r.method(http::Method::GET).f(app::index))
+                .resource("/service-worker.js", |r| {
+                    r.method(http::Method::GET).f(app::service_worker)
+                })
+                .handler("/static", fs::StaticFiles::new(ELM_BUILD_STATIC_PATH))
+                .boxed(),
+            App::with_state(ApiState { db: addr.clone() })
+                .prefix("/api")
+                .resource("/blogs", |r| {
+                    r.put().with(create_blog_post);
+                    r.get().with(list_blog_posts);
+                })
+                .boxed(),
+        ]
+    }).bind(SERVER_ADDRESS)
         .unwrap()
         .start();
 
